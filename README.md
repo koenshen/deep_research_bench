@@ -296,4 +296,11 @@ python -u deepresearch_bench_race.py \
     --query_file data/prompt_data/query.jsonl \
     --output_dir results/race/gpt-researcher-deepseek-v4-260804-claude46 \
     --max_workers 5
+    
+python -u deepresearch_bench_race.py \
+    open-deep-research-deepseek-v4-260804 \
+    --raw_data_dir data/test_data/raw_data \
+    --query_file data/prompt_data/query.jsonl \
+    --output_dir results/race/open-deep-research-deepseek-v4-260804-claude46 \
+    --max_workers 5
 ```
