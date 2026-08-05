@@ -200,14 +200,18 @@ def process_single_item(task_data, target_articles_map, reference_articles_map, 
     return final_result
 
 def process_language_data(language, target_model, llm_client, clean_agent, 
-                         raw_data_dir, cleaned_data_dir, max_workers, limit, query_file):
+                         raw_data_dir, cleaned_data_dir, max_workers, limit, query_file,
+                         existing_ids=None):
     """Process data for a single language (Chinese or English)"""
+    existing_ids = existing_ids or set()
+
     # Restrict cleaning to the same language-specific task set used for scoring.
     # Otherwise, the first language pass can clean every article with the wrong
     # language prompt, leaving nothing for the second language pass to clean.
     language_tasks = [
         task for task in load_jsonl(query_file)
         if task.get('language') == language
+        and task.get('id') not in existing_ids
     ]
     if limit is not None and limit > 0:
         language_tasks = language_tasks[:limit]
@@ -246,7 +250,11 @@ def process_language_data(language, target_model, llm_client, clean_agent,
     
     try:
         all_tasks = load_jsonl(query_file)
-        all_tasks = [task for task in all_tasks if task.get('language') == language]
+        all_tasks = [
+            task for task in all_tasks
+            if task.get('language') == language
+            and task.get('id') not in existing_ids
+        ]
             
         # Apply limit if specified
         if limit is not None and limit > 0:
@@ -436,7 +444,8 @@ def main():
                     logger.info(f"Processing up to {remaining_limit} more Chinese tasks (limit: {limit}, already processed: {existing_zh_count})")
                     zh_results = process_language_data(
                         "zh", target_model, llm_client, clean_agent,
-                        raw_data_dir, cleaned_data_dir, max_workers, remaining_limit, query_file
+                        raw_data_dir, cleaned_data_dir, max_workers, remaining_limit, query_file,
+                        existing_ids=existing_ids
                     )
                     if zh_results:
                         all_results.extend(zh_results)
@@ -446,7 +455,8 @@ def main():
                 # if limit is not specified, process all unprocessed tasks
                 zh_results = process_language_data( 
                     "zh", target_model, llm_client, clean_agent,
-                    raw_data_dir, cleaned_data_dir, max_workers, limit, query_file
+                    raw_data_dir, cleaned_data_dir, max_workers, limit, query_file,
+                    existing_ids=existing_ids
                 )
                 if zh_results:
                     all_results.extend(zh_results)
@@ -471,7 +481,8 @@ def main():
                     logger.info(f"Processing up to {remaining_limit} more English tasks (limit: {limit}, already processed: {existing_en_count})")
                     en_results = process_language_data(
                         "en", target_model, llm_client, clean_agent,
-                        raw_data_dir, cleaned_data_dir, max_workers, remaining_limit, query_file
+                        raw_data_dir, cleaned_data_dir, max_workers, remaining_limit, query_file,
+                        existing_ids=existing_ids
                     )
                     if en_results:
                         all_results.extend(en_results)
@@ -481,7 +492,8 @@ def main():
                 # if limit is not specified, process all unprocessed tasks
                 en_results = process_language_data(
                     "en", target_model, llm_client, clean_agent,
-                    raw_data_dir, cleaned_data_dir, max_workers, limit, query_file
+                    raw_data_dir, cleaned_data_dir, max_workers, limit, query_file,
+                    existing_ids=existing_ids
                 )
                 if en_results:
                     all_results.extend(en_results)
@@ -490,6 +502,14 @@ def main():
     
     # output results to file
     if all_results:
+        # Defensively keep one result per task ID. Newly generated results are
+        # appended after existing results, so they take precedence if duplicated.
+        all_results = list({
+            result.get('id'): result
+            for result in all_results
+            if result.get('id') is not None
+        }.values())
+
         # sort by ID
         all_results.sort(key=lambda x: x.get('id', float('inf')))
         
