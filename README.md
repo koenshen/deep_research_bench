@@ -281,3 +281,28 @@ If you use DeepResearch Bench in your research, please cite our paper:
   year      = {2025},
 }
 ``` 
+
+```bash
+# self
+export LLM_BACKEND="openai"
+export OPENAI_API_KEY="sk-xxx"
+export OPENAI_BASE_URL="https://tokenhub.sensetime.com/v1"
+export RACE_MODEL="claude-sonnet-4-6"
+export FACT_MODEL="claude-sonnet-4-6"
+
+python -u deepresearch_bench_race.py \
+    gpt-researcher-deepseek-v4-260804 \
+    --raw_data_dir data/test_data/raw_data \
+    --query_file data/prompt_data/query.jsonl \
+    --output_dir results/race/gpt-researcher-deepseek-v4-260804-claude46 \
+    --max_workers 5
+    
+curl -sS https://tokenhub.sensetime.com/v1/chat/completions \
+    -H "Authorization: Bearer sk-NpKrUAIDzYJLQmxmDjjy3sxtXp3dQMXZin2G1X80QWQRouPg" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "model": "claude-sonnet-4-6",
+      "messages": [{"role": "user", "content": "Reply with OK only."}],
+      "max_completion_tokens": 32
+    }'
+```

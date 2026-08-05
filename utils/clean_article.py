@@ -10,6 +10,7 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Shared LLM-call concurrency cap. All cleaning calls (any chunk of any article)
 # acquire from this semaphore so total inflight LLM requests ≤ LLM_CONCURRENCY.
@@ -273,6 +274,16 @@ class ArticleCleaner:
             if processed_ids is not None and item_id in processed_ids:
                 self._update_progress(pbar, pbar_lock)
                 return None
+
+            prompt_name = (
+                "clean_article_prompt_zh"
+                if language == "zh"
+                else "clean_article_prompt_en"
+            )
+            logger.info(
+                f"ID: {item_id} - Cleaning with language={language}, "
+                f"prompt={prompt_name}"
+            )
             
             # Decide chunking up-front based on estimated token count
             est_tokens = self._estimate_tokens(article, language)
@@ -447,7 +458,5 @@ class ArticleCleaner:
             logger.info(f"Created new output file: {output_file}")
             
         return processed_ids
-
-
 
 

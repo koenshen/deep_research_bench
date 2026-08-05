@@ -202,6 +202,18 @@ def process_single_item(task_data, target_articles_map, reference_articles_map, 
 def process_language_data(language, target_model, llm_client, clean_agent, 
                          raw_data_dir, cleaned_data_dir, max_workers, limit, query_file):
     """Process data for a single language (Chinese or English)"""
+    # Restrict cleaning to the same language-specific task set used for scoring.
+    # Otherwise, the first language pass can clean every article with the wrong
+    # language prompt, leaving nothing for the second language pass to clean.
+    language_tasks = [
+        task for task in load_jsonl(query_file)
+        if task.get('language') == language
+    ]
+    if limit is not None and limit > 0:
+        language_tasks = language_tasks[:limit]
+    language_task_ids = {
+        task['id'] for task in language_tasks if 'id' in task
+    }
     
     # Step 1: Clean target model articles if needed
     logger.info(f"Checking if {target_model} articles need cleaning...")
@@ -216,7 +228,8 @@ def process_language_data(language, target_model, llm_client, clean_agent,
             max_workers,
             MAX_RETRIES,
             limit,
-            default_language
+            default_language,
+            task_ids=language_task_ids
             )
         cleaning_success = True
     except Exception as e:
@@ -525,4 +538,4 @@ def main():
     logger.info("-------------------")
 
 if __name__ == "__main__":
-    main() 
+    main()
