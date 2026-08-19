@@ -287,20 +287,30 @@ If you use DeepResearch Bench in your research, please cite our paper:
 export LLM_BACKEND="openai"
 export OPENAI_API_KEY="sk-xxx"
 export OPENAI_BASE_URL="https://tokenhub.sensetime.com/v1"
-export RACE_MODEL="claude-sonnet-4-6"
-export FACT_MODEL="claude-sonnet-4-6"
+export RACE_MODEL="gemini-2.5-pro"
+export FACT_MODEL="gemini-2.5-pro"
+export JINA_API_KEY="xxx"
 
 python -u deepresearch_bench_race.py \
     gpt-researcher-deepseek-v4-260804 \
     --raw_data_dir data/test_data/raw_data \
     --query_file data/prompt_data/query.jsonl \
-    --output_dir results/race/gpt-researcher-deepseek-v4-260804-claude46 \
+    --output_dir results/race/gpt-researcher-deepseek-v4-260812-gemini-25-pro \
     --max_workers 5
     
 python -u deepresearch_bench_race.py \
     open-deep-research-deepseek-v4-260804 \
     --raw_data_dir data/test_data/raw_data \
     --query_file data/prompt_data/query.jsonl \
-    --output_dir results/race/open-deep-research-deepseek-v4-260804-claude46 \
+    --output_dir results/race/open-deep-research-deepseek-v4-260812-gemini-25-pro \
     --max_workers 5
+
+python -u deepresearch_bench_race.py \
+    webweaver-deepresearch-deepresearch-deepseek-v4-flash-0731-260818 \
+    --raw_data_dir data/test_data/raw_data \
+    --query_file data/prompt_data/query.jsonl \
+    --output_dir results/race/webweaver-deepresearch-deepresearch-deepseek-v4-flash-0731-260818-gemini-25-pro \
+    --max_workers 5
+
+bash run_benchmark.sh --fact-only
 ```

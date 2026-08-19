@@ -1,11 +1,24 @@
 #!/bin/bash
+set -e
+
+# Run both benchmarks by default, or skip RACE when its results already exist.
+MODE="${1:---all}"
+if [[ "$MODE" != "--all" && "$MODE" != "--fact-only" ]]; then
+  echo "Usage: bash run_benchmark.sh [--all|--fact-only]"
+  exit 1
+fi
+
 # Target model name list
-TARGET_MODELS=("claude-3-7-sonnet-latest")
+TARGET_MODELS=(
+  "gpt-researcher-deepseek-v4-260804"
+  "open-deep-research-deepseek-v4-260804"
+)
 
 # Common parameters for both RACE and Citation evaluations
 RAW_DATA_DIR="data/test_data/raw_data"
 OUTPUT_DIR="results"
 N_TOTAL_PROCESS=10
+SCRAPE_N_TOTAL_PROCESS=1
 QUERY_DATA_PATH="data/prompt_data/query.jsonl"
 
 # Limit on number of prompts to process (for testing). Uncomment to enable
@@ -32,41 +45,43 @@ for TARGET_MODEL in "${TARGET_MODELS[@]}"; do
   echo "Running benchmark for target model: $TARGET_MODEL"
   echo -e "\n\n========== Starting evaluation for $TARGET_MODEL ==========\n" >> "$OUTPUT_LOG_FILE"
 
-  # --- Phase 1: RACE Evaluation ---
-  echo "==== Phase 1: Running RACE Evaluation for $TARGET_MODEL ====" | tee -a "$OUTPUT_LOG_FILE"
-  RACE_OUTPUT="$OUTPUT_DIR/race/$TARGET_MODEL"
-  mkdir -p $RACE_OUTPUT
+  if [[ "$MODE" != "--fact-only" ]]; then
+    # --- Phase 1: RACE Evaluation ---
+    echo "==== Phase 1: Running RACE Evaluation for $TARGET_MODEL ====" | tee -a "$OUTPUT_LOG_FILE"
+    RACE_OUTPUT="$OUTPUT_DIR/race/$TARGET_MODEL"
+    mkdir -p $RACE_OUTPUT
 
-  # Base command for current target model
-  PYTHON_CMD="python -u deepresearch_bench_race.py \"$TARGET_MODEL\" --raw_data_dir $RAW_DATA_DIR --max_workers $N_TOTAL_PROCESS --query_file $QUERY_DATA_PATH --output_dir $RACE_OUTPUT"
+    # Base command for current target model
+    PYTHON_CMD="python -u deepresearch_bench_race.py \"$TARGET_MODEL\" --raw_data_dir $RAW_DATA_DIR --max_workers $N_TOTAL_PROCESS --query_file $QUERY_DATA_PATH --output_dir $RACE_OUTPUT"
 
-  # Add optional parameters
-  if [[ -n "$LIMIT" ]]; then
-    PYTHON_CMD="$PYTHON_CMD $LIMIT"
-  fi
+    # Add optional parameters
+    if [[ -n "$LIMIT" ]]; then
+      PYTHON_CMD="$PYTHON_CMD $LIMIT"
+    fi
 
-  if [[ -n "$SKIP_CLEANING" ]]; then
-    PYTHON_CMD="$PYTHON_CMD $SKIP_CLEANING"
-  fi
-  
-  if [[ -n "$ONLY_ZH" ]]; then
-    PYTHON_CMD="$PYTHON_CMD $ONLY_ZH"
-  fi
-  
-  if [[ -n "$ONLY_EN" ]]; then
-    PYTHON_CMD="$PYTHON_CMD $ONLY_EN"
-  fi
-  
-  if [[ -n "$FORCE" ]]; then
-    PYTHON_CMD="$PYTHON_CMD $FORCE"
-  fi
+    if [[ -n "$SKIP_CLEANING" ]]; then
+      PYTHON_CMD="$PYTHON_CMD $SKIP_CLEANING"
+    fi
 
-  # Execute command and append stdout and stderr to single log file
-  echo "Executing command: $PYTHON_CMD" | tee -a "$OUTPUT_LOG_FILE"
-  eval $PYTHON_CMD >> "$OUTPUT_LOG_FILE" 2>&1
+    if [[ -n "$ONLY_ZH" ]]; then
+      PYTHON_CMD="$PYTHON_CMD $ONLY_ZH"
+    fi
 
-  echo "Completed RACE benchmark test for target model: $TARGET_MODEL"
-  echo -e "\n========== RACE test completed for $TARGET_MODEL ==========\n" >> "$OUTPUT_LOG_FILE"
+    if [[ -n "$ONLY_EN" ]]; then
+      PYTHON_CMD="$PYTHON_CMD $ONLY_EN"
+    fi
+
+    if [[ -n "$FORCE" ]]; then
+      PYTHON_CMD="$PYTHON_CMD $FORCE"
+    fi
+
+    # Execute command and append stdout and stderr to single log file
+    echo "Executing command: $PYTHON_CMD" | tee -a "$OUTPUT_LOG_FILE"
+    eval $PYTHON_CMD >> "$OUTPUT_LOG_FILE" 2>&1
+
+    echo "Completed RACE benchmark test for target model: $TARGET_MODEL"
+    echo -e "\n========== RACE test completed for $TARGET_MODEL ==========\n" >> "$OUTPUT_LOG_FILE"
+  fi
   
   # --- Phase 2: Citation Evaluation ---
   echo "==== Phase 2: Running FACT Evaluation for $TARGET_MODEL ====" | tee -a "$OUTPUT_LOG_FILE"
@@ -84,7 +99,7 @@ for TARGET_MODEL in "${TARGET_MODELS[@]}"; do
   python -u -m utils.deduplicate --raw_data_path $CITATION_OUTPUT/extracted.jsonl --output_path $CITATION_OUTPUT/deduplicated.jsonl --query_data_path $QUERY_DATA_PATH --n_total_process $N_TOTAL_PROCESS
 
   echo "Scrape webpages for $TARGET_MODEL" | tee -a "$OUTPUT_LOG_FILE"
-  python -u -m utils.scrape --raw_data_path $CITATION_OUTPUT/deduplicated.jsonl --output_path $CITATION_OUTPUT/scraped.jsonl --n_total_process $N_TOTAL_PROCESS
+  python -u -m utils.scrape --raw_data_path $CITATION_OUTPUT/deduplicated.jsonl --output_path $CITATION_OUTPUT/scraped.jsonl --n_total_process $SCRAPE_N_TOTAL_PROCESS
 
   echo "Validate citations for $TARGET_MODEL" | tee -a "$OUTPUT_LOG_FILE"
   python -u -m utils.validate --raw_data_path $CITATION_OUTPUT/scraped.jsonl --output_path $CITATION_OUTPUT/validated.jsonl --query_data_path $QUERY_DATA_PATH --n_total_process $N_TOTAL_PROCESS
