@@ -9,7 +9,7 @@ from .api import scrape_url
 from .io_utils import load_jsonl
 
 
-MAX_RETRIES = int(os.environ.get('SCRAPE_MAX_RETRIES', '10'))
+MAX_RETRIES = int(os.environ.get('SCRAPE_MAX_RETRIES', '3'))
 RETRY_DELAY_SECONDS = float(os.environ.get('SCRAPE_RETRY_DELAY', '1'))
 
 
@@ -51,6 +51,27 @@ def append_checkpoint(checkpoint_path, task_id, result):
     }
     with open(checkpoint_path, 'a+', encoding='utf-8') as f:
         f.write(json.dumps(checkpoint, ensure_ascii=False) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def write_article(output_path, d):
+    # Replace any existing line with the same article id so that scraped.jsonl
+    # keeps exactly one (latest) entry per article across resume runs.
+    article_id = d['id']
+    new_line = json.dumps(d, ensure_ascii=False) + "\n"
+    if os.path.exists(output_path):
+        with open(output_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+    else:
+        lines = []
+    kept = [
+        line for line in lines
+        if json.loads(line).get('id') != article_id
+    ]
+    kept.append(new_line)
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.writelines(kept)
         f.flush()
         os.fsync(f.fileno())
 
@@ -125,27 +146,31 @@ if __name__ == '__main__':
         if n_total_process == 1:
             for citation in citations:
                 result = scrape(citation)
-                if 'error' in result:
-                    raise RuntimeError(
-                        f"Failed to scrape {citation} after {MAX_RETRIES} attempts: {result['error']}"
-                    )
-                d['citations_deduped'][result['url']]['url_content'] = result['url_content']
-                append_checkpoint(checkpoint_path, d['id'], result)
+                content = (
+                    f"scrape failed: {result['error']}"
+                    if 'error' in result
+                    else result['url_content']
+                )
+                d['citations_deduped'][result['url']]['url_content'] = content
+                append_checkpoint(checkpoint_path, d['id'], {
+                    'url': result['url'], 'url_content': content,
+                })
         elif n_total_process > 1:
             with multiprocessing.Pool(processes=n_total_process) as pool:
                 results = pool.map(scrape, citations)
 
         # update the url_content
         for res in results:
-            if 'error' in res:
-                raise RuntimeError(
-                    f"Failed to scrape {res['url']} after {MAX_RETRIES} attempts: {res['error']}"
-                )
-            d['citations_deduped'][res['url']]['url_content'] = res['url_content']
-            append_checkpoint(checkpoint_path, d['id'], res)
+            content = (
+                f"scrape failed: {res['error']}"
+                if 'error' in res
+                else res['url_content']
+            )
+            d['citations_deduped'][res['url']]['url_content'] = content
+            append_checkpoint(checkpoint_path, d['id'], {
+                'url': res['url'], 'url_content': content,
+            })
 
-        # write the updated data to the output file
-        with open(output_path, 'a+', encoding='utf-8') as f:
-            f.write(json.dumps(d, ensure_ascii=False) + "\n")
-            f.flush()
-            os.fsync(f.fileno())
+        # write the updated data to the output file, replacing any
+        # previous entry for the same article id
+        write_article(output_path, d)

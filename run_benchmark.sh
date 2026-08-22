@@ -10,15 +10,14 @@ fi
 
 # Target model name list
 TARGET_MODELS=(
-  "gpt-researcher-deepseek-v4-260804"
-  "open-deep-research-deepseek-v4-260804"
+  "webweaver-deepresearch-deepresearch-deepseek-v4-flash-0731-260818"
 )
 
 # Common parameters for both RACE and Citation evaluations
 RAW_DATA_DIR="data/test_data/raw_data"
 OUTPUT_DIR="results"
 N_TOTAL_PROCESS=10
-SCRAPE_N_TOTAL_PROCESS=1
+SCRAPE_N_TOTAL_PROCESS=10
 QUERY_DATA_PATH="data/prompt_data/query.jsonl"
 
 # Limit on number of prompts to process (for testing). Uncomment to enable

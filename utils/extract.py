@@ -94,6 +94,9 @@ def clean_escape(input_text):
     input_text = input_text.replace("\\<", "<")
     input_text = input_text.replace("\\+", "+")
     input_text = input_text.replace("\\~", "~")
+    # strip backslashes that precede characters which are not valid JSON escapes
+    # (e.g. the model escaping '\'' or '\-' would otherwise make json.loads fail)
+    input_text = re.sub(r'\\(?![\\"/bfnrtu])', '', input_text)
     return input_text
 
 
@@ -121,12 +124,12 @@ def run(data, output_path, id_to_lang_map):
         elif lang == 'en':
             user_prompt = prompt_template_en.format(report_text=d['article'])
         
-        response = call_model(user_prompt)
-        
         retries = 0
         while retries < 3:
             retries += 1
             try:
+                response = call_model(user_prompt)
+
                 if response != "":
                     response = response.replace("```json", "").replace("```", "")
                     response = clean_escape(response)

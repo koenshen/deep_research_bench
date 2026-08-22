@@ -285,11 +285,11 @@ If you use DeepResearch Bench in your research, please cite our paper:
 ```bash
 # self
 export LLM_BACKEND="openai"
-export OPENAI_API_KEY="sk-xxx"
+export OPENAI_API_KEY="sk-yegPm5Kv9FgBAhqBTK6SZFwwIFGmPiHaKLOeQi0wSrSRemG8"
 export OPENAI_BASE_URL="https://tokenhub.sensetime.com/v1"
 export RACE_MODEL="gemini-2.5-pro"
 export FACT_MODEL="gemini-2.5-pro"
-export JINA_API_KEY="xxx"
+export JINA_API_KEY="jina_f7ca7fdad43b458caac0a261d7873f20l3hbrB1eKUKNs1WJ1UUadQp2O3uD"
 
 python -u deepresearch_bench_race.py \
     gpt-researcher-deepseek-v4-260804 \
