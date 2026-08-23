@@ -285,17 +285,17 @@ If you use DeepResearch Bench in your research, please cite our paper:
 ```bash
 # self
 export LLM_BACKEND="openai"
-export OPENAI_API_KEY="sk-yegPm5Kv9FgBAhqBTK6SZFwwIFGmPiHaKLOeQi0wSrSRemG8"
+export OPENAI_API_KEY="sk-xxx"
 export OPENAI_BASE_URL="https://tokenhub.sensetime.com/v1"
 export RACE_MODEL="gemini-2.5-pro"
 export FACT_MODEL="gemini-2.5-pro"
 export JINA_API_KEY="jina_f7ca7fdad43b458caac0a261d7873f20l3hbrB1eKUKNs1WJ1UUadQp2O3uD"
 
 python -u deepresearch_bench_race.py \
-    gpt-researcher-deepseek-v4-260804 \
+    gpt-researcher-deepseek-v4-flash-0731-result-260822 \
     --raw_data_dir data/test_data/raw_data \
     --query_file data/prompt_data/query.jsonl \
-    --output_dir results/race/gpt-researcher-deepseek-v4-260812-gemini-25-pro \
+    --output_dir results/race/gpt-researcher-deepseek-v4-flash-0731-260823-gemini-25-pro \
     --max_workers 5
     
 python -u deepresearch_bench_race.py \
