@@ -220,7 +220,10 @@ class WebScrapingJinaTool:
             response = requests.get(jina_url, headers=headers)
 
             if response.status_code != 200:
-                raise Exception(f"Jina AI Reader Failed for {url}: {response.status_code}")
+                raise Exception(
+                    f"Jina AI Reader Failed for {url}: {response.status_code} "
+                    f"{response.text[:1000]}"
+                )
 
             response_dict = response.json()
 

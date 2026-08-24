@@ -11,14 +11,28 @@ from .io_utils import load_jsonl
 
 MAX_RETRIES = int(os.environ.get('SCRAPE_MAX_RETRIES', '3'))
 RETRY_DELAY_SECONDS = float(os.environ.get('SCRAPE_RETRY_DELAY', '1'))
+BALANCE_EXHAUSTED = False
 
 
 def scrape(citation_url):
+    global BALANCE_EXHAUSTED
+
+    # Each pool worker stops issuing requests after it observes a balance error.
+    if BALANCE_EXHAUSTED:
+        return {
+            'url': citation_url,
+            'error': 'balance exhausted',
+        }
+
     retries = 0
     while retries < MAX_RETRIES:
         result = scrape_url(citation_url)
         retries += 1
         if 'error' not in result:
+            break
+        if 'balance' in result['error'].lower():
+            print('\033[91mkey 已经没有额度，请更换 key\033[0m', flush=True)
+            BALANCE_EXHAUSTED = True
             break
         if retries < MAX_RETRIES:
             # Back off between retries so transient 524s do not create a
