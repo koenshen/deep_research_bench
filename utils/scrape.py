@@ -69,6 +69,13 @@ def append_checkpoint(checkpoint_path, task_id, result):
         os.fsync(f.fileno())
 
 
+def append_failed_url(failure_path, url, error):
+    with open(failure_path, 'a+', encoding='utf-8') as f:
+        f.write(json.dumps({'url': url, 'error': error}, ensure_ascii=False) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+
 def write_article(output_path, d):
     # Replace any existing line with the same article id so that scraped.jsonl
     # keeps exactly one (latest) entry per article across resume runs.
@@ -110,12 +117,14 @@ if __name__ == '__main__':
     
     output_path = args.output_path
     checkpoint_path = f"{output_path}.progress.jsonl"
+    failure_path = f"{output_path}.failed_urls.jsonl"
     
     # initialize variables
     raw_data = []
     data_to_process = []
     processed = []
     checkpoints = {}
+    failed_urls = {}
     
     try:
         raw_data = load_jsonl(args.raw_data_path)
@@ -135,6 +144,10 @@ if __name__ == '__main__':
             for checkpoint in load_jsonl(checkpoint_path):
                 checkpoints.setdefault(checkpoint['id'], {})[checkpoint['url']] = checkpoint['url_content']
 
+        if os.path.exists(failure_path):
+            for failure in load_jsonl(failure_path):
+                failed_urls[failure['url']] = failure.get('error', 'previous scrape failure')
+
         data_to_process = [d for d in raw_data if d['id'] not in processed]
     except Exception as exc:
         import sys
@@ -148,10 +161,14 @@ if __name__ == '__main__':
             if url in d['citations_deduped']:
                 d['citations_deduped'][url]['url_content'] = content
 
+        for url, error in failed_urls.items():
+            if url in d['citations_deduped'] and not has_successful_content(d['citations_deduped'][url]):
+                d['citations_deduped'][url]['url_content'] = f"scrape failed: cached failure: {error}"
+
         # get the citations that need to be scraped
         citations = [
             url for url, citation in d['citations_deduped'].items()
-            if not has_successful_content(citation)
+            if not has_successful_content(citation) and url not in failed_urls
         ]
         results = []
 
@@ -169,6 +186,9 @@ if __name__ == '__main__':
                 append_checkpoint(checkpoint_path, d['id'], {
                     'url': result['url'], 'url_content': content,
                 })
+                if 'error' in result and 'balance' not in result['error'].lower():
+                    failed_urls[result['url']] = result['error']
+                    append_failed_url(failure_path, result['url'], result['error'])
         elif n_total_process > 1:
             with multiprocessing.Pool(processes=n_total_process) as pool:
                 results = pool.map(scrape, citations)
@@ -184,7 +204,24 @@ if __name__ == '__main__':
             append_checkpoint(checkpoint_path, d['id'], {
                 'url': res['url'], 'url_content': content,
             })
+            if 'error' in res and 'balance' not in res['error'].lower():
+                failed_urls[res['url']] = res['error']
+                append_failed_url(failure_path, res['url'], res['error'])
 
         # write the updated data to the output file, replacing any
         # previous entry for the same article id
         write_article(output_path, d)
+
+    if os.path.exists(output_path):
+        final_data = load_jsonl(output_path)
+        total_urls = sum(len(d['citations_deduped']) for d in final_data)
+        successful_urls = sum(
+            has_successful_content(citation)
+            for d in final_data
+            for citation in d['citations_deduped'].values()
+        )
+        ratio = successful_urls / total_urls if total_urls else 0
+        print(
+            f"scrape success: {successful_urls}/{total_urls} "
+            f"({ratio:.2%})"
+        )
