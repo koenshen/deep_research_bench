@@ -314,7 +314,13 @@ python -u deepresearch_bench_race.py \
     --max_workers 5
 
 # stage 2
-export MODEL="webweaver-deepresearch-deepresearch-deepseek-v4-flash-0731-260818"
+export LLM_BACKEND="openai"
+export OPENAI_API_KEY="sk-xxx"
+export OPENAI_BASE_URL="https://tokenhub.sensetime.com/v1"
+export RACE_MODEL="gemini-2.5-flash"
+export FACT_MODEL="gemini-2.5-flash"
+export JINA_API_KEY="xxx"
+export MODEL="gpt-researcher-deepseek-v4-flash-0731-result-260822"
 export RAW="data/test_data/raw_data/${MODEL}.jsonl"
 export OUT="results/fact/${MODEL}"
 export QUERY="data/prompt_data/query.jsonl"
