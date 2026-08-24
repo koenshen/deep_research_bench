@@ -289,8 +289,9 @@ export OPENAI_API_KEY="sk-xxx"
 export OPENAI_BASE_URL="https://tokenhub.sensetime.com/v1"
 export RACE_MODEL="gemini-2.5-pro"
 export FACT_MODEL="gemini-2.5-pro"
-export JINA_API_KEY="jina_f7ca7fdad43b458caac0a261d7873f20l3hbrB1eKUKNs1WJ1UUadQp2O3uD"
+export JINA_API_KEY="xxx"
 
+# stage 1
 python -u deepresearch_bench_race.py \
     gpt-researcher-deepseek-v4-flash-0731-result-260822 \
     --raw_data_dir data/test_data/raw_data \
@@ -299,10 +300,10 @@ python -u deepresearch_bench_race.py \
     --max_workers 5
     
 python -u deepresearch_bench_race.py \
-    open-deep-research-deepseek-v4-260804 \
+    open-deep-research-deepseek-v4-flash-0731-result-260823-1543 \
     --raw_data_dir data/test_data/raw_data \
     --query_file data/prompt_data/query.jsonl \
-    --output_dir results/race/open-deep-research-deepseek-v4-260812-gemini-25-pro \
+    --output_dir results/race/open-deep-research-deepseek-v4-flash-0731-260823-gemini-25-pro \
     --max_workers 5
 
 python -u deepresearch_bench_race.py \
@@ -312,5 +313,38 @@ python -u deepresearch_bench_race.py \
     --output_dir results/race/webweaver-deepresearch-deepresearch-deepseek-v4-flash-0731-260818-gemini-25-pro \
     --max_workers 5
 
-bash run_benchmark.sh --fact-only
+# stage 2
+export MODEL="webweaver-deepresearch-deepresearch-deepseek-v4-flash-0731-260818"
+export RAW="data/test_data/raw_data/${MODEL}.jsonl"
+export OUT="results/fact/${MODEL}"
+export QUERY="data/prompt_data/query.jsonl"
+mkdir -p "$OUT"
+
+python -u -m utils.extract \
+    --raw_data_path "$RAW" \
+    --output_path "$OUT/extracted.jsonl" \
+    --query_data_path "$QUERY" \
+    --n_total_process 10
+
+python -u -m utils.deduplicate \
+    --raw_data_path "$OUT/extracted.jsonl" \
+    --output_path "$OUT/deduplicated.jsonl" \
+    --query_data_path "$QUERY" \
+    --n_total_process 10
+
+SCRAPE_MAX_RETRIES=1 SCRAPE_RETRY_DELAY=0 \
+python -u -m utils.scrape \
+    --raw_data_path "$OUT/deduplicated.jsonl" \
+    --output_path "$OUT/scraped.jsonl" \
+    --n_total_process 10
+
+python -u -m utils.validate \
+    --raw_data_path "$OUT/scraped.jsonl" \
+    --output_path "$OUT/validated.jsonl" \
+    --query_data_path "$QUERY" \
+    --n_total_process 10
+
+python -u -m utils.stat \
+    --input_path "$OUT/validated.jsonl" \
+    --output_path "$OUT/fact_result.txt"
 ```
