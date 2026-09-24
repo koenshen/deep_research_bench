@@ -14,13 +14,24 @@ def main() -> None:
     all_urls = [json.loads(line)["url"] for line in lines]
     canonical_map: dict[str, str] = {}
     reverse_map: dict[str, str] = {}
+    invalid_urls: set[str] = set()
     for url in all_urls:
-        norm = url_normalize(url)
+        try:
+            norm = url_normalize(url)
+        except (TypeError, ValueError) as exc:
+            print(f"Failed: {url}: invalid URL ({exc})")
+            invalid_urls.add(url)
+            continue
         if norm is None:
-            print(f"Warning: failed to canonicalize {url}")
+            print(f"Failed: {url}: could not canonicalize URL")
+            invalid_urls.add(url)
             continue
         canonical_map[url] = norm
         reverse_map[norm] = url
+    for url in invalid_urls:
+        rescraped[url] = "failed"
+    if invalid_urls:
+        rescraped_path.write_text(json.dumps(rescraped, ensure_ascii=False, indent=2))
     urls: list[str] = [url for url in all_urls if url not in rescraped]
     print(f"{len(urls)}/{len(all_urls)} URL(s) to be processed...")
     for i, url in enumerate(urls):
